@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Check project structure
+      run: |
+        echo "📁 Repository contents:"
+        find . -type f -name "*.java" -o -name "pom.xml" -o -name "build.gradle" | head -20
+        echo ""
+        if [ -f "pom.xml" ]; then
+          echo "✅ Maven project detected"
+        elif [ -f "build.gradle" ]; then
+          echo "✅ Gradle project detected"
+        else
+          echo "⚠️ No build file found - this may be expected for new projects"
+        fi
+
+    - name: Build with Maven
+      if: hashFiles('pom.xml') != ''
+      run: mvn -B verify --file pom.xml
+
+    - name: Build with Gradle
+      if: hashFiles('build.gradle') != ''
+      run: ./gradlew build
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always() && hashFiles('target/surefire-reports/') != ''
+      with:
+        name: test-results
+        path: target/surefire-reports/
